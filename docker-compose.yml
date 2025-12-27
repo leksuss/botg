@@ -1,0 +1,76 @@
+version: "3.9"
+
+x-app-build: &app_build
+  context: .
+  dockerfile: docker/Dockerfile
+
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: *app_build
+    image: django-telegram-starter:latest
+    command: ["/app/docker/entrypoint-web.sh"]
+    env_file:
+      - .env
+    depends_on:
+      - db
+    expose:
+      - "8000"
+    volumes:
+      - static_data:/app/src/staticfiles
+
+  bot:
+    image: django-telegram-starter:latest
+    command: ["/app/docker/entrypoint-bot.sh"]
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - web
+
+  nginx:
+    image: nginx:1.27
+    env_file:
+      - .env
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_data:/static:ro
+    command: >-
+      sh -lc '
+      WL=/etc/nginx/whitelist.conf;
+      : > "$$WL";
+      if [ -n "$${ADMIN_WHITELIST_IPS:-}" ]; then
+        echo "$$ADMIN_WHITELIST_IPS" | tr ",;" "\n" | while read -r ip; do
+          ip=$$(echo "$$ip" | xargs);
+          [ -n "$$ip" ] && echo "allow $$ip;" >> "$$WL";
+        done;
+      fi;
+      echo "deny all;" >> "$$WL";
+      exec nginx -g "daemon off;"'
+
+  cron:
+    image: django-telegram-starter:latest
+    profiles: ["cron"]
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - web
+    command: ["/bin/sh", "-c", "python /app/src/manage.py crontab add && exec cron -f"]
+
+volumes:
+  static_data:
+  postgres_data:

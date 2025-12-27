@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  linters:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ..:/app
+    environment:
+      PIP_DISABLE_PIP_VERSION_CHECK: "on"
+      PYTHONDONTWRITEBYTECODE: "1"
+    entrypoint: >
+      bash -lc "
+        pip install --no-cache-dir uv &&
+        uv pip install --system flake8 flake8-bugbear flake8-comprehensions &&
+        flake8 --config .linters/pyproject.toml src
+      "
+
+  editorconfig-checker:
+    image: mstruebing/editorconfig-checker:2.7.0
+    working_dir: /app
+    volumes:
+      - ..:/app

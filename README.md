@@ -1,0 +1,75 @@
+## django-telegram-starter
+
+Шаблон Django + Telegram-бот (ASGI, python-telegram-bot v21) с docker-compose, nginx whitelist, systemd, линтерами в docker и настройками через pydantic-settings.
+
+### Стек
+- Django 5 (ASGI)
+- python-telegram-bot v21 (asyncio)
+- uv / gunicorn+uvicorn workers
+- Postgres (prod/dev), SQLite (dev по умолчанию при `DEBUG=1`)
+- pydantic-settings для конфигов
+- httpx, fabric, pre-commit, docker-compose, nginx
+
+### Быстрый старт (dev: uv + Postgres в docker)
+1. Установи `uv` и Docker.
+2. Скопируй `.env_example` в `.env`, заполни токен бота, при необходимости Postgres.
+3. Подними БД:
+   ```bash
+   docker compose -f docker-compose.dev.yml up -d
+   ```
+4. Установи зависимости и запусти сервер:
+   ```bash
+   uv sync
+   uv run python src/manage.py migrate
+   uv run python src/manage.py runserver 127.0.0.1:8000
+   ```
+5. Запусти бота (опционально):
+   ```bash
+   uv run python src/manage.py runbot
+   ```
+
+### Прод (docker-compose + nginx whitelist)
+1. Настрой `.env` (обязательно `DEBUG=0`, `SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `POSTGRES_*`, `ADMIN_WHITELIST_IPS`, `TELEGRAM__BOT_TOKEN`, при желании `LOG_TELEGRAM_*`).
+2. Запуск стека:
+   ```bash
+   docker compose up -d --build --remove-orphans
+   ```
+   Поднимутся сервисы: db, web (uvicorn), bot (PTB v21), nginx (порт 80, отдаёт `/static/`, проксирует `/`, ограничивает `/admin` по `ADMIN_WHITELIST_IPS`), cron (профиль `cron`, опционально).
+3. Логи:
+   ```bash
+   docker compose logs -f
+   ```
+
+### Автозапуск через systemd
+1. Отредактируй `deploy/prod/systemd/django_telegram_starter.service` (WorkingDirectory, COMPOSE_FILE, имя юнита).
+2. Установи:
+   ```bash
+   sudo cp deploy/prod/systemd/django_telegram_starter.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable django_telegram_starter
+   sudo systemctl start django_telegram_starter
+   ```
+
+### Логирование
+- dev: stdout, уровень DEBUG.
+- prod: stdout до WARNING (фильтр), ERROR+ в Telegram при наличии `LOG_TELEGRAM_*`, именованные логгеры для оповещений. См. `LOGGING.md`.
+
+### Линтеры и pre-commit
+- Линтеры упакованы в `.linters/docker-compose.yml` (flake8 + editorconfig-checker).
+- Запуск: `make lint` или целевые `make lint-editorconfig`, `make lint-flake8`.
+- pre-commit хуки: `.pre-commit-config.yaml` (дергают docker-линтеры).
+
+### Полезные команды
+- `make db-up` / `make db-down` — dev Postgres
+- `make compose-up` / `make compose-down` / `make compose-logs` — прод стек
+- `fab deploy -H <host>` — pull/build/migrate/restart через systemd (см. `fabfile.py`)
+
+### Структура
+- `src/config/env_settings.py` — pydantic-settings с nested env (`TELEGRAM__BOT_TOKEN`, `LOG_*`, `POSTGRES_*`, `ADMIN_WHITELIST_IPS`)
+- `src/libs/logging/telegram_handler.py` — Telegram handler + фильтр для stdout
+- `src/telegram_bot/management/commands/runbot.py` — старт PTB v21
+- `docker/` — Dockerfile, entrypoint’ы, nginx.conf (whitelist)
+- `docker-compose.yml` — prod (db/web/bot/nginx/cron)
+- `docker-compose.dev.yml` — dev БД
+- `deploy/prod/systemd/` — unit для автозапуска
+- `.linters/` — docker-compose и конфиг flake8

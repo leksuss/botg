@@ -1,0 +1,25 @@
+[project]
+name = "django-telegram-starter"
+version = "0.1.0"
+description = "Шаблон Django + Telegram-бот (ASGI, PTB v21) с docker-compose, systemd, nginx whitelist и линтерами в docker."
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+license = { text = "MIT" }
+authors = [{ name = "Your Name", email = "you@example.com" }]
+
+dependencies = [
+  "django>=5.1,<6.0",
+  "uvicorn>=0.30,<1.0",
+  "gunicorn>=22,<23",
+  "python-telegram-bot>=21,<22",
+  "pydantic>=2.11,<3.0",
+  "pydantic-settings>=2.6,<3.0",
+  "httpx>=0.28,<1.0",
+  "psycopg[binary]>=3.2,<4.0",
+  "fabric>=3,<4",
+  "pre-commit>=3,<4",
+  "django-crontab>=0.7,<1.0",
+]
+
+[tool.uv]
+package = true

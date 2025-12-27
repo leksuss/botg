@@ -1,0 +1,17 @@
+[Unit]
+Description=django-telegram-starter (Django + Telegram bot) via Docker Compose
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+# УКАЖИТЕ путь к каталогу репозитория на сервере:
+WorkingDirectory=/opt/django-telegram-starter
+Environment="COMPOSE_FILE=/opt/django-telegram-starter/docker-compose.yml"
+RemainAfterExit=true
+ExecStart=/usr/bin/docker compose up -d --build --remove-orphans
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

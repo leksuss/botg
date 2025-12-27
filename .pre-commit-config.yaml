@@ -1,0 +1,19 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: editorconfig-checker
+        name: editorconfig-checker
+        entry: docker compose -f .linters/docker-compose.yml run -T --rm editorconfig-checker
+        language: system
+        pass_filenames: false
+
+      - id: linters
+        name: linters
+        entry: docker compose -f .linters/docker-compose.yml run -T --rm linters
+        language: system
+        pass_filenames: false
